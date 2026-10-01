@@ -1,6 +1,6 @@
-# activeadmin_configurable_columns
+# activeadmin_configurable_columns [![CI](https://github.com/kyryloliinyk/activeadmin_configurable_columns/actions/workflows/ci.yml/badge.svg)](https://github.com/kyryloliinyk/activeadmin_configurable_columns/actions/workflows/ci.yml)
 
-[![CI](https://github.com/kyryloliinyk/activeadmin_configurable_columns/actions/workflows/ci.yml/badge.svg)](https://github.com/kyryloliinyk/activeadmin_configurable_columns/actions/workflows/ci.yml)
+
 
 Per-admin configurable index table columns for [ActiveAdmin](https://activeadmin.info) 4.
 
