@@ -1,5 +1,7 @@
 # activeadmin_configurable_columns
 
+[![CI](https://github.com/kyryloliinyk/activeadmin_configurable_columns/actions/workflows/ci.yml/badge.svg)](https://github.com/kyryloliinyk/activeadmin_configurable_columns/actions/workflows/ci.yml)
+
 Per-admin configurable index table columns for [ActiveAdmin](https://activeadmin.info) 4.
 
 ActiveAdmin has no built-in way to let each admin choose which columns of an
