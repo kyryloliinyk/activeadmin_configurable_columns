@@ -1,0 +1,10 @@
+en:
+  active_admin:
+    sidebars:
+      columns: "Columns"
+    table_columns:
+      title: "Table columns"
+      save: "Save columns"
+      saved: "Columns saved"
+      empty: "No table has configurable columns yet."
+      unknown_resource: "Unknown table"
