@@ -75,6 +75,48 @@ RSpec.describe ActiveadminConfigurableColumns::Registry do
     end
   end
 
+  describe '#arrange' do
+    it 'returns the keys in the given order' do
+      expect(registry.arrange(%i[notes size code name])).to eq(%i[notes size code name])
+    end
+
+    it 'accepts strings' do
+      expect(registry.arrange(%w[notes size code name])).to eq(%i[notes size code name])
+    end
+
+    it 'drops unknown, stale, blank and duplicate keys' do
+      expect(registry.arrange(['', 'notes', :gone, :notes, :size, :code, :name]))
+        .to eq(%i[notes size code name])
+    end
+
+    it 'places a missing key right after its declared predecessor' do
+      expect(registry.arrange(%i[notes name size])).to eq(%i[notes name code size])
+    end
+
+    it 'places a missing first key first' do
+      expect(registry.arrange(%i[notes code size])).to eq(%i[name notes code size])
+    end
+
+    it 'keeps consecutive missing keys together' do
+      expect(registry.arrange(%i[notes name])).to eq(%i[notes name code size])
+    end
+
+    it 'falls back to declaration order for nothing usable' do
+      expect(registry.arrange(nil)).to eq(registry.keys)
+      expect(registry.arrange(%i[gone])).to eq(registry.keys)
+    end
+  end
+
+  describe '#columns_in' do
+    it 'returns the declared columns in the given order' do
+      expect(registry.columns_in(%i[notes name]).map(&:key)).to eq(%i[notes name])
+    end
+
+    it 'skips unknown keys' do
+      expect(registry.columns_in(%i[gone name]).map(&:key)).to eq(%i[name])
+    end
+  end
+
   describe ActiveadminConfigurableColumns::Registry::Builder do
     it 'collects columns in call order' do
       builder = described_class.new

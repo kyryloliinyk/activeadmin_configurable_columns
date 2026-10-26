@@ -25,16 +25,25 @@ RSpec.describe ActiveadminConfigurableColumns::TableRenderer do
 
   it 'renders the columns the current admin saved' do
     ActiveadminConfigurableColumns.preference_store =
-      Fakes::Store.new(admin => { 'widgets' => %i[notes name] })
+      Fakes::Store.new(admin => { 'widgets' => Fakes.saved(%i[notes name]) })
 
     table.configurable_columns
 
     expect(table.titles).to eq(%i[name notes])
   end
 
+  it 'renders them in the order the current admin saved' do
+    ActiveadminConfigurableColumns.preference_store =
+      Fakes::Store.new(admin => { 'widgets' => Fakes.saved(%i[notes name], %i[notes code name]) })
+
+    table.configurable_columns
+
+    expect(table.titles).to eq(%i[notes name])
+  end
+
   it 'ignores what other admins saved' do
     ActiveadminConfigurableColumns.preference_store =
-      Fakes::Store.new(admin_bob: { 'widgets' => %i[notes] })
+      Fakes::Store.new(admin_bob: { 'widgets' => Fakes.saved(%i[notes]) })
 
     table.configurable_columns
 

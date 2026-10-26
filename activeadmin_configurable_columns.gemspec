@@ -23,7 +23,7 @@ Gem::Specification.new do |spec|
 
   spec.required_ruby_version = '>= 3.1'
 
-  spec.files = Dir['{app,config,db,lib}/**/*', 'CHANGELOG.md', 'LICENSE.txt', 'README.md']
+  spec.files = Dir['{app,config,db,lib,vendor}/**/*', 'CHANGELOG.md', 'LICENSE.txt', 'README.md']
   spec.require_paths = ['lib']
 
   spec.add_dependency 'activeadmin', '>= 4.0.0.beta15', '< 4.1'

@@ -9,8 +9,7 @@ RSpec.describe ActiveadminConfigurableColumns do
 
   describe '.preference_store' do
     it 'defaults to a store that answers the read and write contract' do
-      expect(described_class.preference_store).to respond_to(:visible_column_keys)
-      expect(described_class.preference_store).to respond_to(:store)
+      expect(described_class.preference_store).to respond_to(:fetch, :store, :clear)
     end
 
     it 'can be replaced' do
@@ -71,28 +70,73 @@ RSpec.describe ActiveadminConfigurableColumns do
     end
   end
 
-  describe '.visible_columns' do
+  describe '.selection_for' do
     it 'returns the declared defaults when the admin never saved anything' do
       described_class.preference_store = Fakes::Store.new
 
-      expect(described_class.visible_columns(registry, :alice).map(&:key)).to eq(%i[name code])
+      expect(described_class.selection_for(registry, :alice).visible_columns.map(&:key)).to eq(%i[name code])
     end
 
-    it 'returns what the admin saved' do
+    it 'returns what the admin saved, in their order' do
       described_class.preference_store =
-        Fakes::Store.new(alice: { 'widgets' => %i[notes] })
+        Fakes::Store.new(alice: { 'widgets' => Fakes.saved(%i[notes name], %i[notes code name]) })
 
-      expect(described_class.visible_columns(registry, :alice).map(&:key)).to eq(%i[notes])
+      selection = described_class.selection_for(registry, :alice)
+
+      expect(selection.columns.map(&:key)).to eq(%i[notes code name])
+      expect(selection.visible_columns.map(&:key)).to eq(%i[notes name])
     end
 
     it 'asks the store for this resource and this admin' do
       store = Fakes::Store.new
-      allow(store).to receive(:visible_column_keys).and_return(nil)
+      allow(store).to receive(:fetch).and_return(nil)
       described_class.preference_store = store
 
-      described_class.visible_columns(registry, :alice)
+      described_class.selection_for(registry, :alice)
 
-      expect(store).to have_received(:visible_column_keys).with(:alice, 'widgets')
+      expect(store).to have_received(:fetch).with(:alice, 'widgets')
+    end
+  end
+
+  describe '.save_selection' do
+    let(:store) { Fakes::Store.new(alice: { 'widgets' => Fakes.saved(%i[name], %i[code name notes]) }) }
+
+    before { described_class.preference_store = store }
+
+    it 'stores normalized visible keys and the full normalized order' do
+      described_class.save_selection(registry, :alice, visible: %w[notes gone], order: %w[notes gone name])
+
+      expect(store.stored).to eq([{ admin: :alice, resource_key: 'widgets',
+                                    visible_keys: %i[notes], order_keys: %i[notes name code] }])
+    end
+
+    it 'stores the defaults when nothing is visible' do
+      described_class.save_selection(registry, :alice, visible: nil, order: %w[code name notes])
+
+      expect(store.stored.last[:visible_keys]).to eq(%i[name code])
+    end
+
+    it 'keeps the saved order when none is submitted' do
+      described_class.save_selection(registry, :alice, visible: %w[code])
+
+      expect(store.stored.last[:order_keys]).to eq(%i[code name notes])
+    end
+
+    it 'stores no order when none is submitted or saved' do
+      described_class.save_selection(registry, :bob, visible: %w[code])
+
+      expect(store.stored.last[:order_keys]).to be_nil
+    end
+  end
+
+  describe '.reset_selection' do
+    it 'clears the admin selection for this resource' do
+      store = Fakes::Store.new
+      described_class.preference_store = store
+
+      described_class.reset_selection(registry, :alice)
+
+      expect(store.cleared).to eq([{ admin: :alice, resource_key: 'widgets' }])
     end
   end
 

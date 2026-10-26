@@ -8,3 +8,7 @@ en:
       saved: "Columns saved"
       empty: "No table has configurable columns yet."
       unknown_resource: "Unknown table"
+      reset: "Reset to defaults"
+      reset_done: "Columns reset to defaults"
+      move: "Move %{column}"
+      reorder_hint: "Drag to reorder, or focus and use the arrow keys"
