@@ -26,7 +26,7 @@ ActiveAdmin's own extension points:
 Add the gem to your Gemfile:
 
 ```ruby
-gem 'activeadmin_configurable_columns'
+gem 'activeadmin_configurable_columns', '~> 2.0'
 ```
 
 Install the migration and migrate:
@@ -179,7 +179,10 @@ with `Gem.loaded_specs['activeadmin_configurable_columns'].full_gem_path`.
 
 ## Upgrading from 1.x
 
-1. Install and run the new migration, which adds the nullable `column_order`
+Version 2.0 adds column reordering and changes the preference store contract.
+
+1. Update the Gemfile requirement to `'~> 2.0'` and run `bundle update activeadmin_configurable_columns`.
+2. Install and run the new migration, which adds the nullable `column_order`
    column. Existing rows keep working unchanged:
 
    ```sh
@@ -187,10 +190,10 @@ with `Gem.loaded_specs['activeadmin_configurable_columns'].full_gem_path`.
    bin/rails db:migrate
    ```
 
-2. Rebuild your ActiveAdmin Tailwind stylesheet so the picker's new classes are
+3. Rebuild your ActiveAdmin Tailwind stylesheet so the picker's new classes are
    emitted.
-3. Add the four new translation keys above to every locale you override.
-4. A custom `preference_store` must implement the new contract:
+4. Add the four new translation keys above to every locale you override.
+5. A custom `preference_store` must implement the new contract:
    `visible_column_keys` became `fetch`, `store` takes `visible_keys:` and
    `order_keys:` instead of `keys:`, and `clear` is new.
    `ActiveadminConfigurableColumns.visible_columns` is replaced by
