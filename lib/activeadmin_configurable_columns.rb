@@ -35,8 +35,9 @@ module ActiveadminConfigurableColumns
 
     # Where saved selections live. Any object answering
     #
-    #   visible_column_keys(admin, resource_key) -> [Symbol] | nil   (nil = never saved)
-    #   store(admin:, resource_key:, keys:)                          (persists a selection)
+    #   fetch(admin, resource_key) -> SavedSelection | nil      (nil = never saved)
+    #   store(admin:, resource_key:, visible_keys:, order_keys:)  (persists a selection)
+    #   clear(admin:, resource_key:)                              (back to the defaults)
     #
     # can be plugged in; the default is the bundled Preference model. Assigning
     # nil restores that default.
@@ -59,11 +60,26 @@ module ActiveadminConfigurableColumns
       { label: proc { I18n.t('active_admin.table_columns.title') } }
     end
 
-    # The columns the given admin sees for this resource.
-    def visible_columns(registry, admin)
-      saved = preference_store.visible_column_keys(admin, registry.resource_key)
+    # The columns of this resource as the given admin arranged them.
+    def selection_for(registry, admin)
+      Selection.new(registry, preference_store.fetch(admin, registry.resource_key))
+    end
 
-      registry.columns_for(saved || registry.default_keys)
+    # Persists what the admin submitted. Keys are normalized against the
+    # declaration; without an order the previously saved one is kept.
+    def save_selection(registry, admin, visible:, order: nil)
+      order = preference_store.fetch(admin, registry.resource_key)&.order_keys if order.nil?
+
+      preference_store.store(
+        admin: admin,
+        resource_key: registry.resource_key,
+        visible_keys: registry.selected_keys(visible),
+        order_keys: order && registry.arrange(order)
+      )
+    end
+
+    def reset_selection(registry, admin)
+      preference_store.clear(admin: admin, resource_key: registry.resource_key)
     end
 
     # Every resource of the namespace that declares configurable columns.
@@ -92,6 +108,8 @@ end
 
 require_relative 'activeadmin_configurable_columns/column'
 require_relative 'activeadmin_configurable_columns/registry'
+require_relative 'activeadmin_configurable_columns/saved_selection'
+require_relative 'activeadmin_configurable_columns/selection'
 require_relative 'activeadmin_configurable_columns/dsl'
 require_relative 'activeadmin_configurable_columns/resource_extension'
 require_relative 'activeadmin_configurable_columns/table_renderer'

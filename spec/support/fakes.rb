@@ -50,11 +50,26 @@ module Fakes
     def initialize(config) = @config = config
   end
 
-  # Stands in for the preference store: nil means "this admin never saved anything".
+  # Stands in for the preference store: nil means "this admin never saved
+  # anything". Records writes instead of persisting them.
   class Store
-    def initialize(saved = {}) = @saved = saved
+    attr_reader :stored, :cleared
 
-    def visible_column_keys(admin, resource_key) = @saved.dig(admin, resource_key)
+    def initialize(saved = {})
+      @saved = saved
+      @stored = []
+      @cleared = []
+    end
+
+    def fetch(admin, resource_key) = @saved.dig(admin, resource_key)
+
+    def store(**selection) = @stored << selection
+
+    def clear(**selection) = @cleared << selection
+  end
+
+  def self.saved(visible, order = nil)
+    ActiveadminConfigurableColumns::SavedSelection.new(visible_keys: visible, order_keys: order)
   end
 
   # Stands in for a model class that provides translated attribute names.

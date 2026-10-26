@@ -22,6 +22,12 @@ ActiveRecord::Schema.define do
     t.string :code
     t.timestamps
   end
+
+  create_table :gadgets, force: true do |t|
+    t.string :name
+    t.string :serial
+    t.timestamps
+  end
 end
 
 ActiveRecord::MigrationContext.new(

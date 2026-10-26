@@ -1,0 +1,6 @@
+<%# Loads the picker script once per page, however many pickers it shows.
+    Needs importmap-rails (ActiveAdmin 4's default); see the README otherwise. %>
+<% if respond_to?(:javascript_import_module_tag) && !@activeadmin_configurable_columns_script %>
+  <% @activeadmin_configurable_columns_script = true %>
+  <%= javascript_import_module_tag 'activeadmin_configurable_columns/picker' %>
+<% end %>

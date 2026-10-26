@@ -12,6 +12,7 @@ module ActiveadminConfigurableColumns
     def initialize(resource_key, columns)
       @resource_key = resource_key.to_s
       @columns = columns.freeze
+      @columns_by_key = columns.to_h { |column| [column.key, column] }.freeze
     end
 
     def keys = columns.map(&:key)
@@ -29,6 +30,21 @@ module ActiveadminConfigurableColumns
     end
 
     def selected_keys(keys) = columns_for(keys).map(&:key)
+
+    def arrange(keys)
+      arranged = Array(keys).map { |key| key.to_s.to_sym }.uniq & self.keys
+
+      self.keys.each_with_index do |key, index|
+        next if arranged.include?(key)
+
+        previous = self.keys.first(index).reverse.find { |declared| arranged.include?(declared) }
+        arranged.insert(previous ? arranged.index(previous) + 1 : 0, key)
+      end
+
+      arranged
+    end
+
+    def columns_in(keys) = keys.filter_map { |key| @columns_by_key[key.to_sym] }
 
     # Collects `column` declarations from a `configurable_columns` block.
     class Builder

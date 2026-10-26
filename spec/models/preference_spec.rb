@@ -41,21 +41,37 @@ RSpec.describe ActiveadminConfigurableColumns::Preference do
 
       expect(preference).not_to be_valid
     end
+
+    it 'accepts a missing column order' do
+      expect(build_preference(column_order: nil)).to be_valid
+    end
+
+    it 'rejects a non-array column order' do
+      expect(build_preference(column_order: { brand: 1 })).not_to be_valid
+    end
   end
 
-  describe '.visible_column_keys' do
+  describe '.fetch' do
     it 'returns nil when the admin never saved anything' do
-      expect(described_class.visible_column_keys(admin, 'products')).to be_nil
+      expect(described_class.fetch(admin, 'products')).to be_nil
     end
 
     it 'returns nil without an admin' do
-      expect(described_class.visible_column_keys(nil, 'products')).to be_nil
+      expect(described_class.fetch(nil, 'products')).to be_nil
     end
 
-    it 'returns the stored keys as symbols' do
-      build_preference(visible_columns: %w[sku name]).save!
+    it 'returns the stored keys and order as symbols' do
+      build_preference(visible_columns: %w[sku name], column_order: %w[name sku brand]).save!
 
-      expect(described_class.visible_column_keys(admin, 'products')).to eq(%i[sku name])
+      expect(described_class.fetch(admin, 'products'))
+        .to eq(ActiveadminConfigurableColumns::SavedSelection.new(visible_keys: %i[sku name],
+                                                                  order_keys: %i[name sku brand]))
+    end
+
+    it 'returns no order for a selection saved before reordering existed' do
+      build_preference(visible_columns: %w[sku]).save!
+
+      expect(described_class.fetch(admin, 'products').order_keys).to be_nil
     end
 
     it 'ignores preferences of other admins and other tables' do
@@ -63,25 +79,57 @@ RSpec.describe ActiveadminConfigurableColumns::Preference do
       other = AdminUser.create!(email: 'bob@example.com')
       build_preference(admin: other, visible_columns: %w[sku]).save!
 
-      expect(described_class.visible_column_keys(admin, 'products')).to be_nil
+      expect(described_class.fetch(admin, 'products')).to be_nil
     end
   end
 
   describe '.store' do
+    def store(**selection)
+      described_class.store(admin: admin, resource_key: 'products', **selection)
+    end
+
     it 'creates the preference' do
-      expect { described_class.store(admin: admin, resource_key: 'products', keys: %i[sku name]) }
+      expect { store(visible_keys: %i[sku name], order_keys: %i[name sku]) }
         .to change(described_class, :count).by(1)
 
-      expect(described_class.visible_column_keys(admin, 'products')).to eq(%i[sku name])
+      expect(described_class.fetch(admin, 'products').to_h)
+        .to eq(visible_keys: %i[sku name], order_keys: %i[name sku])
     end
 
     it 'updates the existing preference instead of adding another one' do
-      described_class.store(admin: admin, resource_key: 'products', keys: %i[sku])
+      store(visible_keys: %i[sku], order_keys: nil)
 
-      expect { described_class.store(admin: admin, resource_key: 'products', keys: %i[name]) }
+      expect { store(visible_keys: %i[name], order_keys: %i[name sku]) }
         .not_to change(described_class, :count)
 
-      expect(described_class.visible_column_keys(admin, 'products')).to eq(%i[name])
+      expect(described_class.fetch(admin, 'products').to_h)
+        .to eq(visible_keys: %i[name], order_keys: %i[name sku])
+    end
+
+    it 'stores a missing order as NULL' do
+      store(visible_keys: %i[sku], order_keys: nil)
+
+      expect(described_class.find_by(resource_key: 'products').read_attribute_before_type_cast(:column_order))
+        .to be_nil
+    end
+  end
+
+  describe '.clear' do
+    it 'removes only this admin preference for this table' do
+      build_preference.save!
+      build_preference(resource_key: 'brands').save!
+
+      described_class.clear(admin: admin, resource_key: 'products')
+
+      expect(described_class.fetch(admin, 'products')).to be_nil
+      expect(described_class.fetch(admin, 'brands')).not_to be_nil
+    end
+
+    it 'does nothing without an admin' do
+      build_preference.save!
+
+      expect { described_class.clear(admin: nil, resource_key: 'products') }
+        .not_to change(described_class, :count)
     end
   end
 end

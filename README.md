@@ -5,14 +5,15 @@
 Per-admin configurable index table columns for [ActiveAdmin](https://activeadmin.info) 4.
 
 ActiveAdmin has no built-in way to let each admin choose which columns of an
-index table they see. This gem adds one, built on ActiveAdmin's own extension
-points:
+index table they see, or in which order. This gem adds one, built on
+ActiveAdmin's own extension points:
 
 - a `configurable_columns do ... end` DSL declares the columns an admin may pick from;
-- `configurable_columns` inside an `index` block renders the ones the current admin chose;
-- a "Columns" picker appears in the sidebar of every configurable index;
+- `configurable_columns` inside an `index` block renders the ones the current admin chose, in their order;
+- a "Columns" picker appears in the sidebar of every configurable index, where columns are
+  ticked to show them and dragged to reorder them;
 - a "Table columns" admin page lets an admin review and change every table at once;
-- each admin's choice is stored in the database, per admin and per table.
+- each admin's choice and order is stored in the database, per admin and per table.
 
 ## Requirements
 
@@ -79,6 +80,34 @@ saved per admin; unknown or stale keys are dropped on read and write, and an
 empty selection falls back to the declared defaults, so an admin can never end
 up with an empty table.
 
+## Reordering columns
+
+Every row of the picker has a drag handle. Dragging rows and pressing "Save
+columns" stores the new order; the table renders the visible columns in that
+order. `selectable_column` and `actions` stay outside the declaration, so they
+keep their places at the edges of the table.
+
+- **Keyboard:** focus a handle (Tab) and press the up or down arrow to move its row.
+- **Touch:** press and hold a handle briefly, then drag; a short swipe scrolls the page.
+- **Reset to defaults** forgets the admin's choice for that table: the declared
+  defaults, in declaration order.
+- **New columns:** a column added to a declaration later appears next to the
+  column it follows in the declaration, and is visible if it is `default: true`.
+  Selections saved with gem versions before reordering existed keep showing
+  exactly what was ticked, in declaration order, until they are saved again.
+- **Without JavaScript** the picker still saves visibility; it just cannot reorder.
+
+The picker script is an ES module served by the gem and pinned into
+ActiveAdmin's importmap, so an ActiveAdmin 4 installation using
+importmap-rails (the default) needs no extra setup. It uses
+[SortableJS](https://github.com/SortableJS/Sortable) (MIT), vendored in
+`vendor/javascript/activeadmin_configurable_columns/sortable.js`.
+
+If your host builds ActiveAdmin's JavaScript with jsbundling instead, add the
+gem's `app/javascript` directory to your bundler's resolve paths, install
+`sortablejs`, and import `activeadmin_configurable_columns/picker` from your
+ActiveAdmin entrypoint.
+
 ## Configuration
 
 All settings are optional. In `config/initializers/activeadmin_configurable_columns.rb`:
@@ -94,12 +123,18 @@ ActiveadminConfigurableColumns.configure do |config|
   config.sidebar_priority = 20
 
   # Where selections are read from and written to. Any object answering
-  #   visible_column_keys(admin, resource_key) -> [Symbol] | nil  (nil = never saved)
-  #   store(admin:, resource_key:, keys:)
+  #   fetch(admin, resource_key) -> SavedSelection | nil      (nil = never saved)
+  #   store(admin:, resource_key:, visible_keys:, order_keys:)
+  #   clear(admin:, resource_key:)
   # can be plugged in. Default: the bundled Preference model.
   config.preference_store = MyOwnStore
 end
 ```
+
+`fetch` returns an `ActiveadminConfigurableColumns::SavedSelection`, whose
+`visible_keys` are the ticked keys and whose `order_keys` are every key in the
+admin's order, or `nil` for a selection saved without one (declaration order).
+The gem normalizes keys against the declaration before calling `store`.
 
 The current admin is whatever ActiveAdmin's `current_active_admin_user`
 returns, so the gem follows your `config.current_user_method` setting.
@@ -120,6 +155,10 @@ en:
       saved: "Columns saved"
       empty: "No table has configurable columns yet."
       unknown_resource: "Unknown table"
+      reset: "Reset to defaults"
+      reset_done: "Columns reset to defaults"
+      move: "Move %{column}"
+      reorder_hint: "Drag to reorder, or focus and use the arrow keys"
 ```
 
 Column checkbox labels come from `human_attribute_name`, so your existing
@@ -138,6 +177,25 @@ config) so the picker and the "Table columns" page keep their layout:
 If a rake task generates your ActiveAdmin Tailwind entrypoint, resolve the path
 with `Gem.loaded_specs['activeadmin_configurable_columns'].full_gem_path`.
 
+## Upgrading from 1.x
+
+1. Install and run the new migration, which adds the nullable `column_order`
+   column. Existing rows keep working unchanged:
+
+   ```sh
+   bin/rails activeadmin_configurable_columns:install:migrations
+   bin/rails db:migrate
+   ```
+
+2. Rebuild your ActiveAdmin Tailwind stylesheet so the picker's new classes are
+   emitted.
+3. Add the four new translation keys above to every locale you override.
+4. A custom `preference_store` must implement the new contract:
+   `visible_column_keys` became `fetch`, `store` takes `visible_keys:` and
+   `order_keys:` instead of `keys:`, and `clear` is new.
+   `ActiveadminConfigurableColumns.visible_columns` is replaced by
+   `ActiveadminConfigurableColumns.selection_for(registry, admin)`.
+
 ## How it works
 
 - `ActiveadminConfigurableColumns::Dsl` is mixed into `ActiveAdmin::ResourceDSL`;
@@ -145,7 +203,11 @@ with `Gem.loaded_specs['activeadmin_configurable_columns'].full_gem_path`.
   the resource, and adds the sidebar section.
 - `ActiveadminConfigurableColumns::TableRenderer` is mixed into
   `ActiveAdmin::Views::IndexAsTable::IndexTableFor`; `configurable_columns` inside
-  `index` looks up the current admin's saved keys and emits the matching columns.
+  `index` resolves the current admin's `Selection` (order and visibility) and
+  emits the visible columns in order.
+- The picker form gives every row a hidden `columns[]` input. Browsers submit
+  fields in document order, so dragging rows is all the script does; the server
+  receives the full order and the ticked subset with no serialization step.
 - The "Table columns" page is a regular `ActiveAdmin.register_page`, loaded
   through ActiveAdmin's own load paths; its update action also serves the
   sidebar forms.

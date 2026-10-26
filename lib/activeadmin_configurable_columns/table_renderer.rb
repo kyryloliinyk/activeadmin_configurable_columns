@@ -1,7 +1,7 @@
 module ActiveadminConfigurableColumns
   # Mixed into ActiveAdmin::Views::IndexAsTable::IndexTableFor, so that
   # `configurable_columns` inside an `index` block renders the columns the
-  # current admin chose (falling back to the declared defaults).
+  # current admin chose, in their order (falling back to the declared defaults).
   module TableRenderer
     def configurable_columns
       registry = active_admin_config.column_registry
@@ -11,7 +11,8 @@ module ActiveadminConfigurableColumns
       end
 
       ActiveadminConfigurableColumns
-        .visible_columns(registry, helpers.current_active_admin_user)
+        .selection_for(registry, helpers.current_active_admin_user)
+        .visible_columns
         .each { |column| column.render_into(self) }
     end
   end

@@ -1,6 +1,7 @@
 # The "Table columns" page: a central place to review and change visible table
-# columns at once. The same form is rendered in the "Columns" sidebar of every
-# configurable index, and both post back to the page's update action.
+# columns and their order at once. The same form is rendered in the "Columns"
+# sidebar of every configurable index, and both post back to the page's update
+# action.
 ActiveAdmin.register_page 'Table columns' do
   menu ActiveadminConfigurableColumns.menu
 
@@ -20,13 +21,18 @@ ActiveAdmin.register_page 'Table columns' do
       redirect_back fallback_location: page_path,
                     status: :see_other,
                     alert: t('active_admin.table_columns.unknown_resource')
-    else
-      registry = resource.column_registry
+    elsif params[:reset].present?
+      ActiveadminConfigurableColumns.reset_selection(resource.column_registry, current_active_admin_user)
 
-      ActiveadminConfigurableColumns.preference_store.store(
-        admin: current_active_admin_user,
-        resource_key: registry.resource_key,
-        keys: registry.selected_keys(params[:visible_columns])
+      redirect_back fallback_location: page_path,
+                    status: :see_other,
+                    notice: t('active_admin.table_columns.reset_done')
+    else
+      ActiveadminConfigurableColumns.save_selection(
+        resource.column_registry,
+        current_active_admin_user,
+        visible: params[:visible_columns],
+        order: params[:columns]
       )
 
       redirect_back fallback_location: page_path,
